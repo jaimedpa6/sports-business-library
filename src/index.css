@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Ubuntu:wght@400;500&family=JetBrains+Mono:wght@400&display=swap');
+
+@theme {
+  --color-brand-blue: #025785;
+  --color-brand-blue-hover: #013d5e;
+  --color-brand-tint: #E8F4F8;
+  --color-bg: #FAFAF8;
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #545454;
+
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-sans: 'Ubuntu', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-enter {
+  animation: fadeSlideUp 0.25s ease both;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
