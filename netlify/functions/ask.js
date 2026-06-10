@@ -2,16 +2,19 @@
  * netlify/functions/ask.js
  *
  * AI advisor endpoint — receives a question + relevant library entries,
- * calls Claude, and streams a structured answer back.
+ * calls Claude, and returns a structured answer with sources.
  */
 
 import Anthropic from '@anthropic-ai/sdk'
 import Fuse from 'fuse.js'
-import library from '../../src/data/library.json' assert { type: 'json' }
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
+const library = require('../../src/data/library.json')
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-// Build Fuse index at cold-start (reused across warm invocations)
+// Build Fuse index at cold-start
 const fuse = new Fuse(library, {
   keys: [
     { name: 'name',       weight: 3 },
@@ -24,17 +27,14 @@ const fuse = new Fuse(library, {
   minMatchCharLength: 2,
 })
 
-/** Find the top N most relevant entries for a given question */
 function findRelevantEntries(question, n = 8) {
-  const results = fuse.search(question, { limit: n })
-  return results.map(r => r.item)
+  return fuse.search(question, { limit: n }).map(r => r.item)
 }
 
-/** Format entries as context for Claude */
 function buildContext(entries) {
   return entries.map((e, i) => {
     const summary = e.summary ? e.summary.slice(0, 600) : 'No summary available.'
-    return `[${i + 1}] "${e.name}" (${e.categories.join(', ')})\n${summary}`
+    return `[${i + 1}] "${e.name}" (${(e.categories || []).join(', ')})\n${summary}`
   }).join('\n\n---\n\n')
 }
 
@@ -69,57 +69,40 @@ export default async (req) => {
     return new Response('Question too long', { status: 400 })
   }
 
-  const entries = findRelevantEntries(question)
-  const context = buildContext(entries)
+  try {
+    const entries = findRelevantEntries(question)
+    const context = buildContext(entries)
+    const userMessage = `Question: ${question}\n\nRelevant library resources:\n\n${context}`
 
-  const userMessage = `Question: ${question}\n\nRelevant library resources:\n\n${context}`
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userMessage }],
+    })
 
-  // Stream the response
-  const stream = new ReadableStream({
-    async start(controller) {
-      try {
-        const response = await client.messages.create({
-          model: 'claude-sonnet-4-5',
-          max_tokens: 1024,
-          system: SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: userMessage }],
-          stream: true,
-        })
+    const answer = response.content[0]?.text || 'No answer generated.'
 
-        for await (const event of response) {
-          if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-            const chunk = `data: ${JSON.stringify({ text: event.delta.text })}\n\n`
-            controller.enqueue(new TextEncoder().encode(chunk))
-          }
-        }
+    const sources = entries.map(e => ({
+      name: e.name,
+      link: e.link,
+      categories: e.categories,
+    }))
 
-        // Send the source entries at the end
-        const sources = entries.map(e => ({
-          name: e.name,
-          link: e.link,
-          categories: e.categories,
-        }))
-        controller.enqueue(
-          new TextEncoder().encode(`data: ${JSON.stringify({ done: true, sources })}\n\n`)
-        )
-      } catch (err) {
-        console.error('Ask function error:', err)
-        controller.enqueue(
-          new TextEncoder().encode(`data: ${JSON.stringify({ error: 'Something went wrong. Please try again.' })}\n\n`)
-        )
-      } finally {
-        controller.close()
+    return new Response(
+      JSON.stringify({ answer, sources }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
       }
-    },
-  })
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'X-Accel-Buffering': 'no',
-    },
-  })
+    )
+  } catch (err) {
+    console.error('Ask function error:', err)
+    return new Response(
+      JSON.stringify({ error: 'Something went wrong. Please try again.' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
 }
 
 export const config = {

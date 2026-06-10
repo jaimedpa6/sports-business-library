@@ -114,31 +114,13 @@ export default function HomePage() {
         signal: controller.signal,
       })
 
-      if (!res.ok) throw new Error('Request failed')
+      const data = await res.json()
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() // keep incomplete last line
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const data = JSON.parse(line.slice(6))
-            if (data.text) setAskAnswer(prev => prev + data.text)
-            if (data.sources) setAskSources(data.sources)
-            if (data.error) setAskError(data.error)
-          } catch {
-            // ignore malformed chunks
-          }
-        }
+      if (!res.ok || data.error) {
+        setAskError(data.error || 'Something went wrong. Please try again.')
+      } else {
+        setAskAnswer(data.answer)
+        setAskSources(data.sources || [])
       }
     } catch (err) {
       if (err.name !== 'AbortError') {

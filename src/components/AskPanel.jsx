@@ -82,15 +82,6 @@ export default function AskPanel({ question, answer, sources, loading, error, on
             style={{ color: '#2a2a2a' }}
           >
             {answer}
-            {loading && (
-              <span
-                className="inline-block w-0.5 h-4 ml-0.5 align-text-bottom"
-                style={{
-                  background: '#025785',
-                  animation: 'blink 1s step-end infinite',
-                }}
-              />
-            )}
           </div>
         )}
 
