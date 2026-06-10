@@ -7,10 +7,12 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import Fuse from 'fuse.js'
-import { createRequire } from 'module'
+import { readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
+import { join, dirname } from 'path'
 
-const require = createRequire(import.meta.url)
-const library = require('../../src/data/library.json')
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const library = JSON.parse(readFileSync(join(__dirname, '../../src/data/library.json'), 'utf8'))
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
