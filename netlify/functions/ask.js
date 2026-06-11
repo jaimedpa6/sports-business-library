@@ -12,7 +12,14 @@ import { fileURLToPath } from 'url'
 import { join, dirname } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const library = JSON.parse(readFileSync(join(__dirname, '../../src/data/library.json'), 'utf8'))
+// In Netlify's Lambda runtime, included_files are at their original project-relative paths
+// Try multiple paths to handle both local dev and production environments
+let library
+try {
+  library = JSON.parse(readFileSync(join(__dirname, 'src/data/library.json'), 'utf8'))
+} catch {
+  library = JSON.parse(readFileSync(join(__dirname, '../../src/data/library.json'), 'utf8'))
+}
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
