@@ -37,6 +37,7 @@ function isQuestion(text) {
 
 export default function HomePage() {
   const [query, setQuery] = useState('')
+  const [committedQuery, setCommittedQuery] = useState('')
   const [activeCategories, setActiveCategories] = useState([])
   const [selectedEntry, setSelectedEntry] = useState(null)
 
@@ -60,10 +61,13 @@ export default function HomePage() {
   const trimmedQuery = query.trim()
   const queryIsQuestion = trimmedQuery.length >= 10 && isQuestion(trimmedQuery)
 
+  // committedQuery is what was actually searched (set on Enter or search icon click)
+  const committedTrimmed = committedQuery.trim()
+
   const displayed = useMemo(() => {
     // Start with search results or full sorted list — always newest first
-    let results = trimmedQuery.length >= 2
-      ? fuse.search(trimmedQuery).map(r => r.item).sort((a, b) => {
+    let results = committedTrimmed.length >= 2
+      ? fuse.search(committedTrimmed).map(r => r.item).sort((a, b) => {
           if (!a.dateAdded && !b.dateAdded) return 0
           if (!a.dateAdded) return 1
           if (!b.dateAdded) return -1
@@ -81,13 +85,13 @@ export default function HomePage() {
     }
 
     // Default view: cap at 12 most recent; searching or filtering: show all matches
-    return (trimmedQuery.length >= 2 || activeCategories.length > 0) ? results : results.slice(0, 12)
-  }, [trimmedQuery, activeCategories])
+    return (committedTrimmed.length >= 2 || activeCategories.length > 0) ? results : results.slice(0, 12)
+  }, [committedTrimmed, activeCategories])
 
-  const isSearching = trimmedQuery.length >= 2
+  const isSearching = committedTrimmed.length >= 2
 
   const sectionLabel = isSearching
-    ? `${displayed.length} result${displayed.length !== 1 ? 's' : ''} for "${trimmedQuery}"`
+    ? `${displayed.length} result${displayed.length !== 1 ? 's' : ''} for "${committedTrimmed}"`
     : activeCategories.length > 0
       ? `${activeCategories.join(' · ')} — ${displayed.length} resources`
       : 'Recently added'
@@ -140,38 +144,36 @@ export default function HomePage() {
     setAskLoading(false)
   }
 
+  function handleSearch() {
+    if (trimmedQuery.length >= 2) {
+      setCommittedQuery(trimmedQuery)
+    }
+  }
+
   function handleQueryChange(val) {
     setQuery(val)
+    // If input is cleared, also clear search results
+    if (!val.trim()) setCommittedQuery('')
     // Clear AI answer when query changes
     if (askAnswer || askLoading) clearAsk()
   }
 
   const showAskPanel = askedQuestion && (askLoading || askAnswer || askError)
 
-  // Scroll to results when category filter activates (immediate)
+  // Scroll to results only when search is committed (Enter/click) or category is toggled
   const resultsRef = useRef(null)
   useEffect(() => {
-    if (activeCategories.length > 0 && resultsRef.current) {
+    if ((committedTrimmed.length >= 2 || activeCategories.length > 0) && resultsRef.current) {
       resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-  }, [activeCategories])
-
-  // Scroll to results when search query changes (debounced — waits until user stops typing)
-  useEffect(() => {
-    if (!isSearching) return
-    const timer = setTimeout(() => {
-      if (resultsRef.current) {
-        resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
-    }, 600)
-    return () => clearTimeout(timer)
-  }, [trimmedQuery, isSearching])
+  }, [committedTrimmed, activeCategories])
 
   return (
     <main>
       <Hero
         query={query}
         onQueryChange={handleQueryChange}
+        onSearch={handleSearch}
         activeCategories={activeCategories}
         onCategoryToggle={toggleCategory}
         queryIsQuestion={queryIsQuestion}
