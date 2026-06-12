@@ -148,13 +148,24 @@ export default function HomePage() {
 
   const showAskPanel = askedQuestion && (askLoading || askAnswer || askError)
 
-  // Scroll to results when search or filter activates
+  // Scroll to results when category filter activates (immediate)
   const resultsRef = useRef(null)
   useEffect(() => {
-    if ((isSearching || activeCategories.length > 0) && resultsRef.current) {
+    if (activeCategories.length > 0 && resultsRef.current) {
       resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-  }, [trimmedQuery, activeCategories.length])
+  }, [activeCategories])
+
+  // Scroll to results when search query changes (debounced — waits until user stops typing)
+  useEffect(() => {
+    if (!isSearching) return
+    const timer = setTimeout(() => {
+      if (resultsRef.current) {
+        resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [trimmedQuery, isSearching])
 
   return (
     <main>

@@ -5,7 +5,9 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
-  included_files = ["src/data/library.json"]
+
+[functions."ask"]
+  timeout = 26
 
 [[redirects]]
   from = "/api/*"

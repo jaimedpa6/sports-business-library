@@ -7,19 +7,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import Fuse from 'fuse.js'
-import { readFileSync } from 'fs'
-import { fileURLToPath } from 'url'
-import { join, dirname } from 'path'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
-// In Netlify's Lambda runtime, included_files are at their original project-relative paths
-// Try multiple paths to handle both local dev and production environments
-let library
-try {
-  library = JSON.parse(readFileSync(join(__dirname, 'src/data/library.json'), 'utf8'))
-} catch {
-  library = JSON.parse(readFileSync(join(__dirname, '../../src/data/library.json'), 'utf8'))
-}
+import library from '../../src/data/library.json'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -84,8 +72,8 @@ export default async (req) => {
     const userMessage = `Question: ${question}\n\nRelevant library resources:\n\n${context}`
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 1024,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
     })
