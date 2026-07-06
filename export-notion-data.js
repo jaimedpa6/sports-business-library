@@ -70,6 +70,21 @@ function date(prop) {
   return prop.date.start ?? null
 }
 
+// ─── Retry helper ─────────────────────────────────────────────────────────────
+
+async function withRetry(fn, retries = 4, baseDelayMs = 3000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (attempt === retries) throw err
+      const delay = baseDelayMs * attempt
+      console.log(`  ⚠ Attempt ${attempt} failed (${err.message}), retrying in ${delay / 1000}s...`)
+      await new Promise(r => setTimeout(r, delay))
+    }
+  }
+}
+
 // ─── Fetch all pages from the database (handles pagination) ──────────────────
 
 async function fetchAllPages() {
@@ -82,11 +97,11 @@ async function fetchAllPages() {
 
   while (true) {
     pageNum++
-    const response = await notion.databases.query({
+    const response = await withRetry(() => notion.databases.query({
       database_id: DATABASE_ID,
       start_cursor: cursor,
       page_size: 100,
-    })
+    }))
 
     const batchSize = response.results.length
     pages.push(...response.results)
